@@ -1,0 +1,68 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://example.com/vex/corr-001",
+  "author": "Security Team",
+  "timestamp": "2024-06-01T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2021-44228",
+        "description": "Apache Log4j2 JNDI Remote Code Execution (Log4Shell)"
+      },
+      "products": [
+        {
+          "identifiers": {
+            "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.17.2"
+          }
+        }
+      ],
+      "status": "fixed",
+      "action_statement": "Upgrade to log4j-core 2.17.2 or higher"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2021-45046",
+        "description": "Apache Log4j2 Incomplete Fix for Log4Shell"
+      },
+      "products": [
+        {
+          "identifiers": {
+            "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.17.2"
+          }
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-33980",
+        "description": "Apache Commons Configuration RCE via variable interpolation"
+      },
+      "products": [
+        {
+          "identifiers": {
+            "purl": "pkg:maven/org.apache.commons/commons-lang3@3.12.0"
+          }
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Apply vendor patch or restrict user-controlled input"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-99999",
+        "description": "Commons Lang3 integer overflow"
+      },
+      "products": [
+        {
+          "identifiers": {
+            "purl": "pkg:maven/org.apache.commons/commons-lang3@3.12.0"
+          }
+        }
+      ],
+      "status": "under_investigation"
+    }
+  ]
+}

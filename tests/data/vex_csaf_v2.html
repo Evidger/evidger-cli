@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VEX Report</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f7fa;color:#1a1a2e;line-height:1.5}
+header{background:#3b1f5e;color:#fff;padding:20px 32px}
+header h1{font-size:1.25rem;font-weight:600;letter-spacing:.02em}
+header p{margin-top:4px;opacity:.65;font-size:.8125rem}
+main{max-width:1100px;margin:28px auto;padding:0 20px}
+.summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:28px}
+.card{background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.09)}
+.card-title{font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:500}
+.card-value{font-size:1.875rem;font-weight:700;margin-top:6px;color:#111827}
+.meta{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:24px}
+.meta-item{font-size:.8125rem;color:#6b7280}
+.meta-item strong{color:#374151;font-weight:500}
+.controls{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+input[type=text]{flex:1;min-width:200px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.875rem;outline:none;background:#fff}
+input[type=text]:focus{border-color:#3b1f5e;box-shadow:0 0 0 3px rgba(59,31,94,.12)}
+select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.875rem;background:#fff;cursor:pointer;outline:none}
+select:focus{border-color:#3b1f5e}
+.section{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.09);overflow:hidden;margin-bottom:22px}
+.section-header{padding:14px 20px;font-size:.875rem;font-weight:600;border-bottom:1px solid #f3f4f6;background:#fafafa;color:#374151;display:flex;align-items:center;justify-content:space-between}
+.count-badge{font-size:.75rem;font-weight:500;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:9999px}
+table{width:100%;border-collapse:collapse}
+th{padding:9px 14px;text-align:left;font-size:.6875rem;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-weight:500}
+td{padding:11px 14px;border-bottom:1px solid #f3f4f6;font-size:.8125rem;vertical-align:middle}
+tr:last-child > td{border-bottom:none}
+tr.row-main:hover{background:#faf5ff;cursor:pointer}
+tr.row-detail{display:none;background:#f9fafb}
+tr.row-detail.open{display:table-row}
+.detail-inner{padding:10px 14px 10px 36px;font-size:.8rem;color:#6b7280;line-height:1.8}
+.detail-inner strong{color:#374151}
+.toggle{display:inline-block;width:14px;font-size:.625rem;color:#9ca3af;transition:transform .15s;user-select:none}
+.toggle.open{transform:rotate(90deg)}
+.badge{display:inline-block;padding:2px 9px;border-radius:9999px;font-size:.6875rem;font-weight:600;white-space:nowrap}
+.b-critical{background:#fee2e2;color:#b91c1c}
+.b-high{background:#ffedd5;color:#c2410c}
+.b-medium{background:#fef9c3;color:#92400e}
+.b-low{background:#d1fae5;color:#065f46}
+.b-info,.b-none{background:#f3f4f6;color:#6b7280}
+.b-unknown{background:#ede9fe;color:#6d28d9}
+.b-fixed{background:#d1fae5;color:#065f46}
+.b-affected{background:#fee2e2;color:#b91c1c}
+.b-not_affected{background:#f3f4f6;color:#6b7280}
+.b-under_investigation{background:#fef9c3;color:#92400e}
+.empty{padding:28px;text-align:center;color:#9ca3af;font-size:.875rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>VEX Report</h1>
+  <p id="subtitle"></p>
+</header>
+<main>
+  <div class="summary" id="summary"></div>
+  <div class="meta" id="meta"></div>
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search by CVE ID or description…" oninput="filter()">
+    <select id="sev-filter" onchange="filter()">
+      <option value="">All severities</option>
+      <option value="critical">Critical</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+      <option value="none">None</option>
+      <option value="info">Info</option>
+      <option value="unknown">Unknown</option>
+    </select>
+    <select id="status-filter" onchange="filter()">
+      <option value="">All statuses</option>
+      <option value="fixed">Fixed</option>
+      <option value="affected">Affected</option>
+      <option value="not_affected">Not affected</option>
+      <option value="under_investigation">Under investigation</option>
+    </select>
+  </div>
+  <div class="section">
+    <div class="section-header">
+      <span>Vulnerabilities</span>
+      <span class="count-badge" id="visible-count"></span>
+    </div>
+    <table>
+      <thead><tr><th></th><th>CVE / ID</th><th>Severity</th><th>Status</th><th>Description</th></tr></thead>
+      <tbody id="tb-vuln"></tbody>
+    </table>
+  </div>
+</main>
+<script>
+const data = {"author":"Acme Security Team","doc_id":"ACME-2024-002","severity_distribution":{"unknown":2},"source":"vex_csaf_v2.json","timestamp":"2024-06-01T00:00:00Z","vulnerabilities":[{"action_statement":"Update to log4j-core 2.17.0 or higher","description":"Apache Log4j2 Remote Code Execution","id":"CVE-2021-44228","impact_statement":null,"justification":null,"products":[],"severity":"unknown","status":"fixed"},{"action_statement":null,"description":"Jackson Databind deep wrapper array nesting","id":"CVE-2022-42003","impact_statement":null,"justification":"vulnerable_code_not_present","products":[{"name":"jackson-databind-2.13.4","version":null}],"severity":"unknown","status":"not_affected"}]};
+
+function esc(s){
+  if(s==null)return'';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function badge(text,cls){
+  if(!text)return'';
+  const c=cls||text.toLowerCase().replace(/[^a-z_]/g,'');
+  return '<span class="badge b-'+c+'">'+esc(text)+'</span>';
+}
+
+function renderSummary(){
+  document.getElementById('subtitle').textContent='VEX \u00b7 '+data.source;
+  const dist=data.severity_distribution||{};
+  const order=['critical','high','medium','low','none','info','unknown'];
+  let html='<div class="card"><div class="card-title">Statements</div><div class="card-value">'+data.vulnerabilities.length+'</div></div>';
+  order.forEach(function(k){
+    if(dist[k]){
+      html+='<div class="card"><div class="card-title">'+k.charAt(0).toUpperCase()+k.slice(1)+'</div><div class="card-value">'+dist[k]+'</div></div>';
+    }
+  });
+  document.getElementById('summary').innerHTML=html;
+  const meta=[];
+  if(data.author)meta.push('<span class="meta-item"><strong>Author:</strong> '+esc(data.author)+'</span>');
+  if(data.timestamp)meta.push('<span class="meta-item"><strong>Timestamp:</strong> '+esc(data.timestamp)+'</span>');
+  if(data.doc_id)meta.push('<span class="meta-item"><strong>ID:</strong> '+esc(data.doc_id)+'</span>');
+  document.getElementById('meta').innerHTML=meta.join('');
+}
+
+function renderVulns(){
+  const tb=document.getElementById('tb-vuln');
+  if(!data.vulnerabilities||data.vulnerabilities.length===0){
+    tb.innerHTML='<tr><td colspan="5" class="empty">No vulnerability statements in this document</td></tr>';
+    updateCount(0);
+    return;
+  }
+  let html='';
+  data.vulnerabilities.forEach(function(v,i){
+    const rid='v'+i;
+    const sev=v.severity||'unknown';
+    const status=v.status||'unknown';
+    const searchText=(v.id+' '+(v.description||'')+' '+sev+' '+status).toLowerCase();
+    const details=[];
+    if(v.justification)details.push('<strong>Justification:</strong> '+esc(v.justification));
+    if(v.impact_statement)details.push('<strong>Impact:</strong> '+esc(v.impact_statement));
+    if(v.action_statement)details.push('<strong>Action:</strong> '+esc(v.action_statement));
+    if(v.products&&v.products.length>0){
+      const pl=v.products.map(function(p){return esc(p.name+(p.version?'@'+p.version:''));}).join(', ');
+      details.push('<strong>Affected products:</strong> '+pl);
+    }
+    if(details.length===0)details.push('No additional details recorded.');
+    html+='<tr class="row-main" onclick="toggle(\''+rid+'\')" data-text="'+esc(searchText)+'" data-sev="'+sev+'" data-status="'+status+'">'
+      +'<td><span class="toggle" id="ti-'+rid+'">&#9654;</span></td>'
+      +'<td><strong>'+esc(v.id)+'</strong></td>'
+      +'<td>'+badge(sev,sev)+'</td>'
+      +'<td>'+badge(status,status)+'</td>'
+      +'<td style="color:#6b7280;max-width:340px">'+esc(v.description||'—')+'</td>'
+      +'</tr>'
+      +'<tr class="row-detail" id="'+rid+'">'
+      +'<td colspan="5"><div class="detail-inner">'+details.join('<br>')+'</div></td></tr>';
+  });
+  tb.innerHTML=html;
+  updateCount(data.vulnerabilities.length);
+}
+
+function toggle(id){
+  const row=document.getElementById(id);
+  const icon=document.getElementById('ti-'+id);
+  if(!row)return;
+  const open=row.classList.toggle('open');
+  if(icon)icon.classList.toggle('open',open);
+}
+
+function updateCount(n){
+  document.getElementById('visible-count').textContent=n+' statement'+(n===1?'':'s');
+}
+
+function filter(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const sev=document.getElementById('sev-filter').value;
+  const st=document.getElementById('status-filter').value;
+  let visible=0;
+  document.querySelectorAll('#tb-vuln .row-main').forEach(function(r){
+    const match=(r.dataset.text||'').includes(q)
+      &&(!sev||r.dataset.sev===sev)
+      &&(!st||r.dataset.status===st);
+    r.style.display=match?'':'none';
+    const detail=r.nextElementSibling;
+    if(detail&&!match)detail.classList.remove('open');
+    if(match)visible++;
+  });
+  updateCount(visible);
+}
+
+renderSummary();
+renderVulns();
+</script>
+</body>
+</html>

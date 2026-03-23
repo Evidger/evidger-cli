@@ -1,0 +1,66 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "title": "Log4Shell VEX v2",
+    "publisher": {
+      "category": "vendor",
+      "name": "Acme Security Team",
+      "namespace": "https://example.com"
+    },
+    "tracking": {
+      "id": "ACME-2024-002",
+      "status": "final",
+      "version": "2",
+      "initial_release_date": "2024-01-15T00:00:00Z",
+      "current_release_date": "2024-06-01T00:00:00Z",
+      "revision_history": [
+        {
+          "number": "1",
+          "date": "2024-01-15T00:00:00Z",
+          "summary": "Initial release"
+        },
+        {
+          "number": "2",
+          "date": "2024-06-01T00:00:00Z",
+          "summary": "Added CVE-2022-42003"
+        }
+      ]
+    }
+  },
+  "product_tree": {
+    "full_product_names": [
+      {
+        "product_id": "log4j-core-2.17.2",
+        "name": "log4j-core 2.17.2"
+      },
+      {
+        "product_id": "jackson-databind-2.13.4",
+        "name": "jackson-databind 2.13.4"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2021-44228",
+      "title": "Apache Log4j2 Remote Code Execution",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Update to log4j-core 2.17.0 or higher",
+          "product_ids": ["log4j-core-2.17.2"]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2022-42003",
+      "title": "Jackson Databind deep wrapper array nesting",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": ["jackson-databind-2.13.4"]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.0/spdx-context.jsonld",
+  "@graph": [
+    {
+      "type": "software_Package",
+      "spdxId": "https://example.com/pkg/log4j-core",
+      "name": "log4j-core",
+      "software_packageVersion": "2.17.2",
+      "unknown_field": "this should not be here"
+    }
+  ]
+}

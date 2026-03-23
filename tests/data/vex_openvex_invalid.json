@@ -1,0 +1,15 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://example.com/vex/2024-002",
+  "timestamp": "2024-01-15T10:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2021-44228"
+      },
+      "status": "fixed"
+    }
+  ],
+  "custom_extension": "additionalProperties is false — this must fail"
+}

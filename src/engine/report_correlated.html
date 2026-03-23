@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Correlated Security Report</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f7fa;color:#1a1a2e;line-height:1.5}
+header{background:#0f4c5c;color:#fff;padding:20px 32px}
+header h1{font-size:1.25rem;font-weight:600;letter-spacing:.02em}
+header p{margin-top:4px;opacity:.65;font-size:.8125rem}
+main{max-width:1200px;margin:28px auto;padding:0 20px}
+h2{font-size:.9375rem;font-weight:600;color:#374151;margin:0}
+.summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:14px;margin-bottom:28px}
+.card{background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.09)}
+.card-title{font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:500}
+.card-value{font-size:1.875rem;font-weight:700;margin-top:6px;color:#111827}
+.card.c-affected .card-value{color:#b91c1c}
+.card.c-actionable .card-value{color:#c2410c}
+.card.c-fixed .card-value{color:#065f46}
+.card.c-safe .card-value{color:#6b7280}
+.card.c-noise .card-value{color:#6d28d9}
+.noise-bar-wrap{background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.09);margin-bottom:28px}
+.noise-bar-label{font-size:.75rem;color:#6b7280;margin-bottom:8px;display:flex;justify-content:space-between}
+.noise-bar-track{background:#fee2e2;border-radius:9999px;height:14px;overflow:hidden}
+.noise-bar-fill{background:#d1fae5;height:100%;border-radius:9999px;transition:width .5s}
+.section{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.09);overflow:hidden;margin-bottom:22px}
+.section-head{padding:14px 20px;border-bottom:1px solid #f3f4f6;background:#fafafa;display:flex;align-items:center;justify-content:space-between}
+.controls{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+input[type=text]{flex:1;min-width:200px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.875rem;outline:none;background:#fff}
+input[type=text]:focus{border-color:#0f4c5c;box-shadow:0 0 0 3px rgba(15,76,92,.12)}
+select{padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.875rem;background:#fff;cursor:pointer;outline:none}
+select:focus{border-color:#0f4c5c}
+table{width:100%;border-collapse:collapse}
+th{padding:9px 14px;text-align:left;font-size:.6875rem;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-weight:500}
+td{padding:11px 14px;border-bottom:1px solid #f3f4f6;font-size:.8125rem;vertical-align:middle}
+tr:last-child > td{border-bottom:none}
+tr.row-main{cursor:pointer}
+tr.row-main:hover{background:#f0fdfa}
+tr.row-main.s-affected{background:#fff5f5}
+tr.row-main.s-affected:hover{background:#fee2e2}
+tr.row-main.s-not_affected{opacity:.5}
+tr.row-main.s-not_affected:hover{opacity:.8;background:#f9fafb}
+tr.row-main.s-fixed{background:#f0fdf4}
+tr.row-main.s-fixed:hover{background:#dcfce7}
+tr.row-main.s-under_investigation{background:#fffbeb}
+tr.row-main.s-under_investigation:hover{background:#fef3c7}
+tr.row-detail{display:none;background:#f9fafb}
+tr.row-detail.open{display:table-row}
+.detail-inner{padding:10px 14px 10px 20px;font-size:.8rem;color:#6b7280;line-height:1.8}
+.detail-inner strong{color:#374151}
+.toggle{display:inline-block;width:14px;font-size:.625rem;color:#9ca3af;transition:transform .15s;user-select:none}
+.toggle.open{transform:rotate(90deg)}
+.badge{display:inline-block;padding:2px 9px;border-radius:9999px;font-size:.6875rem;font-weight:600;white-space:nowrap}
+.b-critical{background:#fee2e2;color:#b91c1c}
+.b-high{background:#ffedd5;color:#c2410c}
+.b-medium{background:#fef9c3;color:#92400e}
+.b-low{background:#d1fae5;color:#065f46}
+.b-info,.b-none{background:#f3f4f6;color:#6b7280}
+.b-unknown{background:#ede9fe;color:#6d28d9}
+.b-fixed{background:#d1fae5;color:#065f46}
+.b-affected{background:#fee2e2;color:#b91c1c}
+.b-not_affected{background:#f3f4f6;color:#6b7280}
+.b-under_investigation{background:#fef9c3;color:#92400e}
+.count-badge{font-size:.75rem;font-weight:500;background:#ccfbf1;color:#0f766e;padding:2px 8px;border-radius:9999px}
+.risk-bar{height:8px;border-radius:4px;background:#e5e7eb;overflow:hidden;min-width:60px;display:inline-block;vertical-align:middle}
+.risk-bar-fill{height:100%;background:#ef4444;border-radius:4px}
+.empty{padding:28px;text-align:center;color:#9ca3af;font-size:.875rem}
+.tag-exploitable{display:inline-block;padding:1px 6px;border-radius:3px;font-size:.65rem;font-weight:700;background:#dc2626;color:#fff;letter-spacing:.03em;margin-left:4px;vertical-align:middle}
+.tag-ignored{display:inline-block;padding:1px 6px;border-radius:3px;font-size:.65rem;font-weight:600;background:#e5e7eb;color:#6b7280;margin-left:4px;vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <h1>Correlated Security Report</h1>
+  <p id="subtitle"></p>
+</header>
+<main>
+  <div class="summary" id="summary"></div>
+  <div class="noise-bar-wrap" id="noise-section">
+    <div class="noise-bar-label">
+      <span>Noise reduction — vulnerabilities confirmed not applicable</span>
+      <span id="noise-pct-label"></span>
+    </div>
+    <div class="noise-bar-track"><div class="noise-bar-fill" id="noise-bar" style="width:0%"></div></div>
+  </div>
+  <div class="section" id="sec-actionable">
+    <div class="section-head"><h2>Actionable Vulnerabilities</h2><span class="count-badge" id="cnt-actionable"></span></div>
+    <table><thead><tr><th></th><th>CVE / ID</th><th>Severity</th><th>Status</th><th>Component</th><th>Action Required</th></tr></thead>
+    <tbody id="tb-actionable"></tbody></table>
+  </div>
+  <div class="section" id="sec-comp-risk">
+    <div class="section-head"><h2>Component Risk Ranking</h2></div>
+    <table><thead><tr><th>Component</th><th>Version</th><th>Affected</th><th>Under Investigation</th><th>Fixed</th><th>Not Affected</th><th>Risk</th></tr></thead>
+    <tbody id="tb-comp-risk"></tbody></table>
+  </div>
+  <div class="section" id="sec-all">
+    <div class="section-head"><h2>All Correlations</h2><span class="count-badge" id="cnt-all"></span></div>
+    <div style="padding:14px 20px 0">
+      <div class="controls">
+        <input type="text" id="search" placeholder="Search CVE, component…" oninput="filterAll()">
+        <select id="f-sev" onchange="filterAll()">
+          <option value="">All severities</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+          <option value="unknown">Unknown</option>
+        </select>
+        <select id="f-status" onchange="filterAll()">
+          <option value="">All statuses</option>
+          <option value="affected">Affected</option>
+          <option value="fixed">Fixed</option>
+          <option value="not_affected">Not Affected</option>
+          <option value="under_investigation">Under Investigation</option>
+        </select>
+        <select id="f-comp" onchange="filterAll()">
+          <option value="">All components</option>
+        </select>
+      </div>
+    </div>
+    <table><thead><tr><th></th><th>CVE / ID</th><th>Severity</th><th>Status</th><th>Component</th><th>Version</th></tr></thead>
+    <tbody id="tb-all"></tbody></table>
+  </div>
+</main>
+<script>
+const data = __DATA_PLACEHOLDER__;
+
+const SEV_ORDER={critical:0,high:1,medium:2,low:3,none:4,info:4,unknown:5};
+
+function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function badge(t,c){if(!t)return'';const k=c||t.toLowerCase().replace(/[^a-z_]/g,'');return'<span class="badge b-'+k+'">'+esc(t)+'</span>';}
+function toggle(id){const r=document.getElementById(id);const ic=document.getElementById('ti-'+id);if(!r)return;const o=r.classList.toggle('open');if(ic)ic.classList.toggle('open',o);}
+
+function renderSummary(){
+  const s=data.stats;
+  document.getElementById('subtitle').textContent='SBOM: '+data.sbom_source+' \u00b7 VEX: '+data.vex_source;
+  document.getElementById('summary').innerHTML=
+    '<div class="card"><div class="card-title">Total Correlations</div><div class="card-value">'+s.total+'</div></div>'
+   +'<div class="card c-actionable"><div class="card-title">Actionable</div><div class="card-value">'+s.actionable+'</div></div>'
+   +'<div class="card c-affected"><div class="card-title">Affected</div><div class="card-value">'+s.affected+'</div></div>'
+   +'<div class="card"><div class="card-title">Under Investigation</div><div class="card-value">'+s.under_investigation+'</div></div>'
+   +'<div class="card c-fixed"><div class="card-title">Fixed</div><div class="card-value">'+s.fixed+'</div></div>'
+   +'<div class="card c-safe"><div class="card-title">Not Affected</div><div class="card-value">'+s.not_affected+'</div></div>'
+   +'<div class="card c-noise"><div class="card-title">Noise Reduction</div><div class="card-value">'+s.noise_reduction_pct+'%</div></div>';
+  document.getElementById('noise-pct-label').textContent=s.noise_reduction_pct+'% not applicable';
+  document.getElementById('noise-bar').style.width=s.noise_reduction_pct+'%';
+  if(s.total===0)document.getElementById('noise-section').style.display='none';
+}
+
+function renderActionable(){
+  const items=data.correlations.filter(function(c){return c.status==='affected'||c.status==='under_investigation';});
+  items.sort(function(a,b){return(SEV_ORDER[a.severity]||5)-(SEV_ORDER[b.severity]||5);});
+  document.getElementById('cnt-actionable').textContent=items.length+' item'+(items.length===1?'':'s');
+  if(items.length===0){
+    document.getElementById('tb-actionable').innerHTML='<tr><td colspan="6" class="empty">No actionable vulnerabilities \u2014 good news!</td></tr>';
+    return;
+  }
+  document.getElementById('tb-actionable').innerHTML=items.map(function(c,i){
+    const rid='a'+i;
+    const tag=c.status==='affected'?'<span class="tag-exploitable">EXPLOITABLE</span>':'';
+    return '<tr class="row-main s-'+c.status+'" onclick="toggle(\''+rid+'\')">'
+      +'<td><span class="toggle" id="ti-'+rid+'">&#9654;</span></td>'
+      +'<td><strong>'+esc(c.vuln_id)+'</strong>'+tag+'</td>'
+      +'<td>'+badge(c.severity,c.severity)+'</td>'
+      +'<td>'+badge(c.status,c.status)+'</td>'
+      +'<td>'+esc(c.component_name)+(c.component_version?'<span style="color:#9ca3af"> @'+esc(c.component_version)+'</span>':'')+'</td>'
+      +'<td style="color:#374151;font-size:.8rem">'+esc(c.action_statement||c.justification||'—')+'</td>'
+      +'</tr>'
+      +'<tr class="row-detail" id="'+rid+'"><td colspan="6"><div class="detail-inner">'
+      +(c.description?'<strong>Description:</strong> '+esc(c.description)+'<br>':'')
+      +(c.justification?'<strong>Justification:</strong> '+esc(c.justification)+'<br>':'')
+      +(c.action_statement?'<strong>Action:</strong> '+esc(c.action_statement):'')
+      +'</div></td></tr>';
+  }).join('');
+}
+
+function renderComponentRisk(){
+  const maxScore=data.component_risk.reduce(function(m,r){return Math.max(m,r.risk_score);},1);
+  document.getElementById('tb-comp-risk').innerHTML=data.component_risk.map(function(r){
+    const pct=Math.round((r.risk_score/maxScore)*100);
+    const barColor=r.risk_score===0?'#d1fae5':r.affected>0?'#ef4444':'#f59e0b';
+    return '<tr>'
+      +'<td><strong>'+esc(r.name)+'</strong></td>'
+      +'<td style="color:#9ca3af">'+esc(r.version||'—')+'</td>'
+      +'<td style="color:'+(r.affected>0?'#b91c1c':'#9ca3af')+'">'+r.affected+'</td>'
+      +'<td style="color:'+(r.under_investigation>0?'#92400e':'#9ca3af')+'">'+r.under_investigation+'</td>'
+      +'<td style="color:'+(r.fixed>0?'#065f46':'#9ca3af')+'">'+r.fixed+'</td>'
+      +'<td style="color:#9ca3af">'+r.not_affected+'</td>'
+      +'<td><span class="risk-bar"><span class="risk-bar-fill" style="width:'+pct+'%;background:'+barColor+'"></span></span> '
+      +(r.risk_score===0?'<span style="color:#6b7280;font-size:.75rem">clean</span>':'<span style="font-size:.75rem;font-weight:600">'+r.risk_score+'</span>')
+      +'</td></tr>';
+  }).join('');
+}
+
+function buildCompFilter(){
+  const sel=document.getElementById('f-comp');
+  const names=[...new Set(data.correlations.map(function(c){return c.component_name;}))].sort();
+  names.forEach(function(n){const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+}
+
+function renderAll(){
+  const cnt=data.correlations.length;
+  document.getElementById('cnt-all').textContent=cnt+' correlation'+(cnt===1?'':'s');
+  document.getElementById('tb-all').innerHTML=data.correlations.map(function(c,i){
+    const rid='r'+i;
+    const st=c.status;
+    const tag=st==='affected'?'<span class="tag-exploitable">EXPLOITABLE</span>':st==='not_affected'?'<span class="tag-ignored">ignored</span>':'';
+    const txt=(c.vuln_id+' '+(c.description||'')+' '+c.severity+' '+st+' '+c.component_name).toLowerCase();
+    return '<tr class="row-main s-'+st+'" onclick="toggle(\''+rid+'\')" data-text="'+esc(txt)+'" data-sev="'+c.severity+'" data-status="'+st+'" data-comp="'+esc(c.component_name)+'">'
+      +'<td><span class="toggle" id="ti-'+rid+'">&#9654;</span></td>'
+      +'<td><strong>'+esc(c.vuln_id)+'</strong>'+tag+'</td>'
+      +'<td>'+badge(c.severity,c.severity)+'</td>'
+      +'<td>'+badge(st,st)+'</td>'
+      +'<td>'+esc(c.component_name)+'</td>'
+      +'<td style="color:#9ca3af">'+esc(c.component_version||'—')+'</td>'
+      +'</tr>'
+      +'<tr class="row-detail" id="'+rid+'"><td colspan="6"><div class="detail-inner">'
+      +(c.description?'<strong>Description:</strong> '+esc(c.description)+'<br>':'')
+      +(c.justification?'<strong>Justification:</strong> '+esc(c.justification)+'<br>':'')
+      +(c.action_statement?'<strong>Action:</strong> '+esc(c.action_statement)+'<br>':'')
+      +(!c.description&&!c.justification&&!c.action_statement?'No additional details.':'')
+      +'</div></td></tr>';
+  }).join('');
+  if(cnt===0)document.getElementById('tb-all').innerHTML='<tr><td colspan="6" class="empty">No correlations found</td></tr>';
+}
+
+function filterAll(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const sev=document.getElementById('f-sev').value;
+  const st=document.getElementById('f-status').value;
+  const comp=document.getElementById('f-comp').value;
+  let vis=0;
+  document.querySelectorAll('#tb-all .row-main').forEach(function(r){
+    const m=(r.dataset.text||'').includes(q)
+      &&(!sev||r.dataset.sev===sev)
+      &&(!st||r.dataset.status===st)
+      &&(!comp||r.dataset.comp===comp);
+    r.style.display=m?'':'none';
+    const d=r.nextElementSibling;
+    if(d&&!m)d.classList.remove('open');
+    if(m)vis++;
+  });
+  document.getElementById('cnt-all').textContent=vis+' correlation'+(vis===1?'':'s');
+}
+
+renderSummary();
+renderActionable();
+renderComponentRisk();
+buildCompFilter();
+renderAll();
+</script>
+</body>
+</html>

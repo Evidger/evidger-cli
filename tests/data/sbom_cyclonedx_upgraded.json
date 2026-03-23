@@ -1,0 +1,22 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 3,
+  "serialNumber": "urn:uuid:1a2b3c4d-5e6f-7890-abcd-ef0123456789",
+  "components": [
+    {
+      "type": "library",
+      "name": "log4j-core",
+      "version": "2.18.0",
+      "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.18.0",
+      "bom-ref": "pkg:maven/org.apache.logging.log4j/log4j-core@2.18.0"
+    },
+    {
+      "type": "library",
+      "name": "commons-lang3",
+      "version": "3.12.0",
+      "purl": "pkg:maven/org.apache.commons/commons-lang3@3.12.0",
+      "bom-ref": "pkg:maven/org.apache.commons/commons-lang3@3.12.0"
+    }
+  ]
+}

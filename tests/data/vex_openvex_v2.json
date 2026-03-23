@@ -1,0 +1,38 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://example.com/vex/2024-002",
+  "author": "Acme Security Team",
+  "timestamp": "2024-06-01T00:00:00Z",
+  "version": 2,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2021-44228",
+        "description": "Apache Log4j2 JNDI features do not protect against attacker-controlled LDAP endpoints"
+      },
+      "products": [
+        {
+          "identifiers": {
+            "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.15.0"
+          }
+        }
+      ],
+      "status": "fixed"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-42003",
+        "description": "Jackson Databind deep wrapper array nesting"
+      },
+      "products": [
+        {
+          "identifiers": {
+            "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.13.4"
+          }
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.0/spdx-context.jsonld",
+  "@graph": [
+    {
+      "type": "CreationInfo",
+      "@id": "_:ci",
+      "specVersion": "3.0.0",
+      "created": "2024-01-15T00:00:00Z",
+      "createdBy": ["https://example.com/org/acme"]
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://example.com/pkg/log4j-core",
+      "creationInfo": "_:ci",
+      "name": "log4j-core",
+      "software_packageVersion": "2.17.2",
+      "externalIdentifier": [
+        {
+          "type": "ExternalIdentifier",
+          "externalIdentifierType": "packageUrl",
+          "identifier": "pkg:maven/org.apache.logging.log4j/log4j-core@2.17.2"
+        }
+      ]
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://example.com/pkg/commons-lang3",
+      "creationInfo": "_:ci",
+      "name": "commons-lang3",
+      "software_packageVersion": "3.12.0",
+      "externalIdentifier": [
+        {
+          "type": "ExternalIdentifier",
+          "externalIdentifierType": "packageUrl",
+          "identifier": "pkg:maven/org.apache.commons/commons-lang3@3.12.0"
+        }
+      ]
+    }
+  ]
+}

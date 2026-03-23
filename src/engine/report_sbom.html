@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SBOM Report</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f7fa;color:#1a1a2e;line-height:1.5}
+header{background:#1e3a5f;color:#fff;padding:20px 32px}
+header h1{font-size:1.25rem;font-weight:600;letter-spacing:.02em}
+header p{margin-top:4px;opacity:.65;font-size:.8125rem}
+main{max-width:1100px;margin:28px auto;padding:0 20px}
+.summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:28px}
+.card{background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.09)}
+.card-title{font-size:.6875rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:500}
+.card-value{font-size:1.875rem;font-weight:700;margin-top:6px;color:#111827}
+.card-value.small{font-size:1.125rem;word-break:break-all}
+.meta{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:24px}
+.meta-item{font-size:.8125rem;color:#6b7280}
+.meta-item strong{color:#374151;font-weight:500}
+.controls{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+input[type=text]{flex:1;min-width:200px;padding:8px 12px;border:1px solid #d1d5db;border-radius:6px;font-size:.875rem;outline:none;background:#fff}
+input[type=text]:focus{border-color:#1e3a5f;box-shadow:0 0 0 3px rgba(30,58,95,.12)}
+.section{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.09);overflow:hidden;margin-bottom:22px}
+.section-header{padding:14px 20px;font-size:.875rem;font-weight:600;border-bottom:1px solid #f3f4f6;background:#fafafa;color:#374151;display:flex;align-items:center;justify-content:space-between}
+.count-badge{font-size:.75rem;font-weight:500;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:9999px}
+table{width:100%;border-collapse:collapse}
+th{padding:9px 14px;text-align:left;font-size:.6875rem;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-weight:500}
+td{padding:11px 14px;border-bottom:1px solid #f3f4f6;font-size:.8125rem;vertical-align:middle}
+tr:last-child > td{border-bottom:none}
+tr.row-main:hover{background:#f0f7ff;cursor:pointer}
+tr.row-detail{display:none;background:#f9fafb}
+tr.row-detail.open{display:table-row}
+.detail-inner{padding:10px 14px 10px 36px;font-size:.8rem;color:#6b7280;line-height:1.8}
+.detail-inner strong{color:#374151}
+.toggle{display:inline-block;width:14px;font-size:.625rem;color:#9ca3af;transition:transform .15s;user-select:none}
+.toggle.open{transform:rotate(90deg)}
+.purl{font-size:.75rem;color:#6b7280;word-break:break-all;font-family:monospace}
+.empty{padding:28px;text-align:center;color:#9ca3af;font-size:.875rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>SBOM Report</h1>
+  <p id="subtitle"></p>
+</header>
+<main>
+  <div class="summary" id="summary"></div>
+  <div class="meta" id="meta"></div>
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search by name, version or PURL…" oninput="filter()">
+  </div>
+  <div class="section">
+    <div class="section-header">
+      <span>Components</span>
+      <span class="count-badge" id="visible-count"></span>
+    </div>
+    <table>
+      <thead><tr><th></th><th>Name</th><th>Version</th><th>PURL</th></tr></thead>
+      <tbody id="tb-comp"></tbody>
+    </table>
+  </div>
+</main>
+<script>
+const data = __DATA_PLACEHOLDER__;
+
+function esc(s){
+  if(s==null)return'';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderSummary(){
+  document.getElementById('subtitle').textContent='SBOM \u00b7 '+data.source;
+  const html='<div class="card"><div class="card-title">Components</div><div class="card-value">'+data.components.length+'</div></div>'
+    +(data.format?'<div class="card"><div class="card-title">Format</div><div class="card-value small">'+esc(data.format)+'</div></div>':'')
+    +(data.spec_version?'<div class="card"><div class="card-title">Spec version</div><div class="card-value small">'+esc(data.spec_version)+'</div></div>':'');
+  document.getElementById('summary').innerHTML=html;
+  const meta=[];
+  if(data.serial_number)meta.push('<span class="meta-item"><strong>Serial:</strong> '+esc(data.serial_number)+'</span>');
+  if(data.doc_version!=null)meta.push('<span class="meta-item"><strong>Version:</strong> '+data.doc_version+'</span>');
+  document.getElementById('meta').innerHTML=meta.join('');
+}
+
+function renderComponents(){
+  const tb=document.getElementById('tb-comp');
+  if(!data.components||data.components.length===0){
+    tb.innerHTML='<tr><td colspan="4" class="empty">No components found in this SBOM</td></tr>';
+    updateCount(0);
+    return;
+  }
+  let html='';
+  data.components.forEach(function(c,i){
+    const rid='c'+i;
+    const searchText=(c.name+' '+(c.version||'')+' '+(c.purl||'')).toLowerCase();
+    html+='<tr class="row-main" onclick="toggle(\''+rid+'\')" data-text="'+esc(searchText)+'">'
+      +'<td><span class="toggle" id="ti-'+rid+'">&#9654;</span></td>'
+      +'<td><strong>'+esc(c.name)+'</strong></td>'
+      +'<td>'+(c.version?esc(c.version):'<span style="color:#d1d5db">—</span>')+'</td>'
+      +'<td class="purl">'+(c.purl?esc(c.purl):'<span style="color:#d1d5db">—</span>')+'</td>'
+      +'</tr>'
+      +'<tr class="row-detail" id="'+rid+'">'
+      +'<td colspan="4"><div class="detail-inner">'
+      +(c.purl?'<strong>PURL:</strong> <code style="font-size:.8rem">'+esc(c.purl)+'</code><br>':'')
+      +(c.version?'<strong>Version:</strong> '+esc(c.version)+(c.purl?'':' — no PURL recorded'):'No version or PURL recorded.')
+      +'</div></td></tr>';
+  });
+  tb.innerHTML=html;
+  updateCount(data.components.length);
+}
+
+function toggle(id){
+  const row=document.getElementById(id);
+  const icon=document.getElementById('ti-'+id);
+  if(!row)return;
+  const open=row.classList.toggle('open');
+  if(icon)icon.classList.toggle('open',open);
+}
+
+function updateCount(n){
+  document.getElementById('visible-count').textContent=n+' component'+(n===1?'':'s');
+}
+
+function filter(){
+  const q=document.getElementById('search').value.toLowerCase();
+  let visible=0;
+  document.querySelectorAll('#tb-comp .row-main').forEach(function(r){
+    const match=(r.dataset.text||'').includes(q);
+    r.style.display=match?'':'none';
+    const detail=r.nextElementSibling;
+    if(detail&&!match)detail.classList.remove('open');
+    if(match)visible++;
+  });
+  updateCount(visible);
+}
+
+renderSummary();
+renderComponents();
+</script>
+</body>
+</html>

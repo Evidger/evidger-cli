@@ -1,0 +1,32 @@
+# Internal dev files
+CLAUDE.md
+ARCHITECTURE.md
+TASKLIST.md
+
+# Rust build artifacts
+/target
+Cargo.lock
+
+# IDE and editor files
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+
+# Generated HTML reports
+*.html
+!src/engine/*.html
+!tests/data/*.html
+
+# Log files
+*.log

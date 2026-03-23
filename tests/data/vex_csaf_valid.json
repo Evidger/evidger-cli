@@ -1,0 +1,57 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "title": "Log4Shell VEX",
+    "publisher": {
+      "category": "vendor",
+      "name": "Acme Security Team",
+      "namespace": "https://example.com"
+    },
+    "tracking": {
+      "id": "ACME-2024-001",
+      "status": "final",
+      "version": "1",
+      "initial_release_date": "2024-01-15T00:00:00Z",
+      "current_release_date": "2024-01-15T00:00:00Z",
+      "revision_history": [
+        {
+          "number": "1",
+          "date": "2024-01-15T00:00:00Z",
+          "summary": "Initial release"
+        }
+      ]
+    }
+  },
+  "product_tree": {
+    "full_product_names": [
+      {
+        "product_id": "log4j-core-2.17.2",
+        "name": "log4j-core 2.17.2"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2021-44228",
+      "title": "Apache Log4j2 Remote Code Execution",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Update to log4j-core 2.17.0 or higher",
+          "product_ids": ["log4j-core-2.17.2"]
+        }
+      ]
+    },
+    {
+      "cve": "CVE-2021-45046",
+      "title": "Apache Log4j2 Incomplete Fix",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": ["log4j-core-2.17.2"]
+        }
+      ]
+    }
+  ]
+}

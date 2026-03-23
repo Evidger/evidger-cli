@@ -1,0 +1,38 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://example.com/vex/2024-pre-remediation",
+  "author": "Acme Security Team",
+  "timestamp": "2024-01-10T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2021-44228",
+        "description": "Apache Log4j2 JNDI features do not protect against attacker-controlled LDAP endpoints"
+      },
+      "products": [
+        {
+          "identifiers": {
+            "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+          }
+        }
+      ],
+      "status": "affected",
+      "action_statement": "Update to log4j-core 2.17.0 or higher"
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2021-45046"
+      },
+      "products": [
+        {
+          "identifiers": {
+            "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.16.0"
+          }
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present"
+    }
+  ]
+}
