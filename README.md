@@ -55,19 +55,48 @@ Format detection is automatic — evidger inspects the JSON content, not the fil
 
 ## Installation
 
+### Pre-built Binaries (recommended)
+
+Download the latest release from [GitHub releases](https://github.com/Evidger/evidger-cli/releases).
+
+**Supported platforms:**
+- Linux (x86_64, glibc and musl) — musl binaries are statically linked for better portability
+- Windows (x86_64)
+- macOS (x86_64 and ARM64)
+
+1. Download the ZIP archive for your platform
+2. Download the `.sha256` file to verify integrity
+3. Verify the checksum: `sha256sum -c evidger-cli-v0.1.0-x86_64-unknown-linux-gnu.zip.sha256`
+4. Extract the binary
+5. Make it executable (Linux/macOS): `chmod +x evidger-cli`
+6. Add it to your PATH or use it directly
+
+**Linux example:**
+```bash
+wget https://github.com/Evidger/evidger-cli/releases/download/v0.1.0/evidger-cli-v0.1.0-x86_64-unknown-linux-gnu.zip
+unzip evidger-cli-v0.1.0-x86_64-unknown-linux-gnu.zip
+chmod +x evidger-cli
+sudo mv evidger-cli /usr/local/bin/
+```
+
+### Via cargo-binstall
+
+```bash
+cargo binstall evidger-cli
+```
+
 ### From source
 
 ```bash
-git clone https://github.com/your-org/evidger-cli
+git clone https://github.com/Evidger/evidger-cli
 cd evidger-cli
 cargo build --release
-./target/release/evidger --help
+./target/release/evidger-cli --help
 ```
 
 ### Prerequisites
 
-- Rust 1.75+
-- Cargo
+- Rust 1.75+ (for building from source)
 
 ---
 
