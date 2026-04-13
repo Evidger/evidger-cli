@@ -28,7 +28,7 @@ evidger helps security and engineering teams manage software supply chain risk b
 
 ## Why evidger?
 
-Software supply chain security requires working across multiple SBOM and VEX standards. Different tools produce different formats. Teams need to validate files before ingesting them, diff SBOMs between releases, merge VEX documents from multiple vendors, and generate human-readable reports for stakeholders.
+Software supply chain security requires working across multiple SBOM and VEX standards. Different tools produce different formats. Teams need to validate files before ingesting them, diff SBOMs between releases, merge VEX documents from multiple vendors, and generate human-readable reports for custommers.
 
 evidger brings all of this into one binary:
 
