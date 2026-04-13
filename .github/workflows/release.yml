@@ -80,7 +80,11 @@ jobs:
           fi
           ARCHIVE_NAME=evidger-cli-${{ github.ref_name }}-${{ matrix.target }}.zip
 
-          zip -j "$ARCHIVE_NAME" "target/${{ matrix.target }}/release/$BINARY_NAME"
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a "$ARCHIVE_NAME" "target/${{ matrix.target }}/release/$BINARY_NAME"
+          else
+            zip -j "$ARCHIVE_NAME" "target/${{ matrix.target }}/release/$BINARY_NAME"
+          fi
           sha256sum "$ARCHIVE_NAME" > "$ARCHIVE_NAME.sha256"
 
       - name: Upload binaries to release
