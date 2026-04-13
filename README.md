@@ -533,3 +533,10 @@ cargo build --release
 ```
 
 All features must be accompanied by tests. Prefer integration tests (in `tests/`) over unit tests where possible, and use realistic SBOM/VEX fixtures.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
