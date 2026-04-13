@@ -55,28 +55,16 @@ Format detection is automatic — evidger inspects the JSON content, not the fil
 
 ## Installation
 
-### Pre-built Binaries (recommended)
+### Linux / macOS
 
-Download the latest release from [GitHub releases](https://github.com/Evidger/evidger-cli/releases).
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/Evidger/evidger-cli/releases/latest/download/evidger-cli-installer.sh | sh
+```
 
-**Supported platforms:**
-- Linux (x86_64, glibc and musl) — musl binaries are statically linked for better portability
-- Windows (x86_64)
-- macOS (x86_64 and ARM64)
+### Windows
 
-1. Download the ZIP archive for your platform
-2. Download the `.sha256` file to verify integrity
-3. Verify the checksum: `sha256sum -c evidger-cli-v0.1.0-x86_64-unknown-linux-gnu.zip.sha256`
-4. Extract the binary
-5. Make it executable (Linux/macOS): `chmod +x evidger-cli`
-6. Add it to your PATH or use it directly
-
-**Linux example:**
-```bash
-wget https://github.com/Evidger/evidger-cli/releases/download/v0.1.0/evidger-cli-v0.1.0-x86_64-unknown-linux-gnu.zip
-unzip evidger-cli-v0.1.0-x86_64-unknown-linux-gnu.zip
-chmod +x evidger-cli
-sudo mv evidger-cli /usr/local/bin/
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/Evidger/evidger-cli/releases/latest/download/evidger-cli-installer.ps1 | iex"
 ```
 
 ### Via cargo-binstall
@@ -94,9 +82,19 @@ cargo build --release
 ./target/release/evidger-cli --help
 ```
 
-### Prerequisites
+Requires Rust 1.75+.
 
-- Rust 1.75+ (for building from source)
+### Supported platforms
+
+| Platform | Architecture |
+|----------|-------------|
+| Linux | x64 (glibc) |
+| Linux | x64 (musl, statically linked) |
+| Linux | arm64 (Raspberry Pi 4/5 64-bit) |
+| Linux | armv7 (Raspberry Pi 2/3 32-bit) |
+| macOS | x64 |
+| macOS | arm64 (Apple Silicon) |
+| Windows | x64 |
 
 ---
 
