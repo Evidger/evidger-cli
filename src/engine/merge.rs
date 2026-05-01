@@ -2,11 +2,30 @@ use crate::{
     errors::{EvidgerError, Result},
     format::{self, Document},
     json,
-    models::{Component, SbomDocument, VexDocument, VexStatement},
+    models::{Component, SbomDocument, VexDocument, VexStatement, VexStatus},
     registry,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+/// How to resolve a VEX status conflict between two files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
+pub enum ConflictStrategy {
+    /// Keep the value from the last file.
+    LastWins,
+    /// Keep the most severe status: Affected > UnderInvestigation > Fixed > NotAffected (default).
+    #[default]
+    MostSevere,
+}
+
+fn status_priority(s: &VexStatus) -> u8 {
+    match s {
+        VexStatus::Affected => 3,
+        VexStatus::UnderInvestigation => 2,
+        VexStatus::Fixed => 1,
+        VexStatus::NotAffected => 0,
+    }
+}
 
 /// A version or status conflict that was resolved by last-wins.
 #[derive(Debug)]
@@ -34,7 +53,7 @@ pub struct MergeResult {
 /// All files must be of the same document kind (all SBOMs or all VEXes).
 /// Formats may differ (e.g. CycloneDX + SPDX, or OpenVEX + CSAF).
 /// Returns `EvidgerError::MergeConflict` if kinds are mixed.
-pub fn merge_files(paths: &[PathBuf]) -> Result<MergeResult> {
+pub fn merge_files(paths: &[PathBuf], strategy: ConflictStrategy) -> Result<MergeResult> {
     let mut docs: Vec<(String, Document)> = Vec::with_capacity(paths.len());
 
     for path in paths {
@@ -83,7 +102,7 @@ pub fn merge_files(paths: &[PathBuf]) -> Result<MergeResult> {
                     _ => unreachable!(),
                 })
                 .collect();
-            let (merged, conflicts) = merge_vexes(vexes, &sources);
+            let (merged, conflicts) = merge_vexes(vexes, &sources, strategy);
             Ok(MergeResult {
                 sources,
                 document: Document::Vex(merged),
@@ -132,8 +151,12 @@ fn merge_sboms(docs: Vec<SbomDocument>, sources: &[String]) -> (SbomDocument, Ve
     (merged, conflicts)
 }
 
-/// Merge VEX documents: deduplicate by CVE ID; last file wins on status conflict.
-fn merge_vexes(docs: Vec<VexDocument>, sources: &[String]) -> (VexDocument, Vec<Conflict>) {
+/// Merge VEX documents: deduplicate by CVE ID; conflict resolved by `strategy`.
+fn merge_vexes(
+    docs: Vec<VexDocument>,
+    sources: &[String],
+    strategy: ConflictStrategy,
+) -> (VexDocument, Vec<Conflict>) {
     // id → (statement, source_index)
     let mut seen: HashMap<String, (VexStatement, usize)> = HashMap::new();
     let mut conflicts: Vec<Conflict> = Vec::new();
@@ -141,19 +164,53 @@ fn merge_vexes(docs: Vec<VexDocument>, sources: &[String]) -> (VexDocument, Vec<
     for (idx, doc) in docs.iter().enumerate() {
         for stmt in &doc.statements {
             let id = stmt.vulnerability.id.clone();
-            match seen.get(&id) {
-                Some((existing, prev_idx)) if existing.status != stmt.status => {
-                    conflicts.push(Conflict {
-                        id: id.clone(),
-                        kept_from: sources[idx].clone(),
-                        overridden_from: sources[*prev_idx].clone(),
-                    });
-                    seen.insert(id, (stmt.clone(), idx));
+            // Clone only what we need for comparison; avoids borrowing `seen` across the insert.
+            let existing_info = seen.get(&id).map(|(s, i)| (
+                s.status.clone(),
+                s.justification.clone(),
+                s.impact_statement.clone(),
+                s.action_statement.clone(),
+                *i,
+            ));
+            match existing_info {
+                Some((ex_status, ex_just, ex_impact, ex_action, prev_idx)) => {
+                    let status_differs = ex_status != stmt.status;
+                    let sub_differs = ex_just != stmt.justification
+                        || ex_impact != stmt.impact_statement
+                        || ex_action != stmt.action_statement;
+
+                    if status_differs || sub_differs {
+                        let incoming_wins = match strategy {
+                            ConflictStrategy::LastWins => true,
+                            ConflictStrategy::MostSevere => {
+                                if status_differs {
+                                    status_priority(&stmt.status) > status_priority(&ex_status)
+                                } else {
+                                    // Same status, different sub-status: no severity ordering → last-wins
+                                    true
+                                }
+                            }
+                        };
+                        if incoming_wins {
+                            conflicts.push(Conflict {
+                                id: id.clone(),
+                                kept_from: sources[idx].clone(),
+                                overridden_from: sources[prev_idx].clone(),
+                            });
+                            seen.insert(id, (stmt.clone(), idx));
+                        } else {
+                            conflicts.push(Conflict {
+                                id: id.clone(),
+                                kept_from: sources[prev_idx].clone(),
+                                overridden_from: sources[idx].clone(),
+                            });
+                        }
+                    }
+                    // else: completely identical — keep existing, no conflict
                 }
                 None => {
                     seen.insert(id, (stmt.clone(), idx));
                 }
-                _ => {} // identical status — keep existing
             }
         }
     }
@@ -189,6 +246,16 @@ mod tests {
     }
 
     fn make_stmt(id: &str, status: VexStatus) -> VexStatement {
+        make_stmt_full(id, status, None, None, None)
+    }
+
+    fn make_stmt_full(
+        id: &str,
+        status: VexStatus,
+        justification: Option<&str>,
+        impact_statement: Option<&str>,
+        action_statement: Option<&str>,
+    ) -> VexStatement {
         VexStatement {
             vulnerability: Vulnerability {
                 id: id.into(),
@@ -198,9 +265,9 @@ mod tests {
             },
             products: vec![],
             status,
-            justification: None,
-            impact_statement: None,
-            action_statement: None,
+            justification: justification.map(String::from),
+            impact_statement: impact_statement.map(String::from),
+            action_statement: action_statement.map(String::from),
         }
     }
 
@@ -266,7 +333,7 @@ mod tests {
         let a = vex(vec![make_stmt("CVE-2021-44228", VexStatus::Fixed)]);
         let b = vex(vec![make_stmt("CVE-2021-45046", VexStatus::NotAffected)]);
         let sources = ["a".into(), "b".into()];
-        let (merged, conflicts) = merge_vexes(vec![a, b], &sources);
+        let (merged, conflicts) = merge_vexes(vec![a, b], &sources, ConflictStrategy::LastWins);
         assert_eq!(merged.statements.len(), 2);
         assert!(conflicts.is_empty());
     }
@@ -277,7 +344,7 @@ mod tests {
         let a = vex(vec![stmt.clone()]);
         let b = vex(vec![stmt]);
         let sources = ["a".into(), "b".into()];
-        let (merged, conflicts) = merge_vexes(vec![a, b], &sources);
+        let (merged, conflicts) = merge_vexes(vec![a, b], &sources, ConflictStrategy::LastWins);
         assert_eq!(merged.statements.len(), 1);
         assert!(conflicts.is_empty());
     }
@@ -287,9 +354,81 @@ mod tests {
         let a = vex(vec![make_stmt("CVE-2021-44228", VexStatus::Affected)]);
         let b = vex(vec![make_stmt("CVE-2021-44228", VexStatus::Fixed)]);
         let sources = ["a".into(), "b".into()];
-        let (merged, conflicts) = merge_vexes(vec![a, b], &sources);
+        let (merged, conflicts) = merge_vexes(vec![a, b], &sources, ConflictStrategy::LastWins);
         assert_eq!(merged.statements.len(), 1);
         assert_eq!(merged.statements[0].status, VexStatus::Fixed);
+        assert_eq!(conflicts.len(), 1);
+    }
+
+    #[test]
+    fn vex_status_conflict_most_severe_keeps_affected() {
+        // b has NotAffected, but a has Affected → Affected must win
+        let a = vex(vec![make_stmt("CVE-2021-44228", VexStatus::Affected)]);
+        let b = vex(vec![make_stmt("CVE-2021-44228", VexStatus::NotAffected)]);
+        let sources = ["a".into(), "b".into()];
+        let (merged, conflicts) = merge_vexes(vec![a, b], &sources, ConflictStrategy::MostSevere);
+        assert_eq!(merged.statements.len(), 1);
+        assert_eq!(merged.statements[0].status, VexStatus::Affected);
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].kept_from, "a");
+        assert_eq!(conflicts[0].overridden_from, "b");
+    }
+
+    #[test]
+    fn vex_status_conflict_most_severe_upgrades_to_affected() {
+        // a has Fixed, b has Affected → Affected wins even though b comes last
+        let a = vex(vec![make_stmt("CVE-2021-44228", VexStatus::Fixed)]);
+        let b = vex(vec![make_stmt("CVE-2021-44228", VexStatus::Affected)]);
+        let sources = ["a".into(), "b".into()];
+        let (merged, conflicts) = merge_vexes(vec![a, b], &sources, ConflictStrategy::MostSevere);
+        assert_eq!(merged.statements[0].status, VexStatus::Affected);
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].kept_from, "b");
+    }
+
+    #[test]
+    fn vex_identical_sub_status_not_a_conflict() {
+        let stmt = make_stmt_full("CVE-2021-45046", VexStatus::NotAffected, Some("component_not_present"), None, None);
+        let a = vex(vec![stmt.clone()]);
+        let b = vex(vec![stmt]);
+        let sources = ["a".into(), "b".into()];
+        let (merged, conflicts) = merge_vexes(vec![a, b], &sources, ConflictStrategy::LastWins);
+        assert_eq!(merged.statements.len(), 1);
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn vex_sub_status_conflict_last_wins_keeps_incoming() {
+        let a = vex(vec![make_stmt_full("CVE-2021-45046", VexStatus::NotAffected, Some("vulnerable_code_not_present"), None, None)]);
+        let b = vex(vec![make_stmt_full("CVE-2021-45046", VexStatus::NotAffected, Some("component_not_present"), None, None)]);
+        let sources = ["a".into(), "b".into()];
+        let (merged, conflicts) = merge_vexes(vec![a, b], &sources, ConflictStrategy::LastWins);
+        assert_eq!(merged.statements.len(), 1);
+        assert_eq!(merged.statements[0].justification.as_deref(), Some("component_not_present"));
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].kept_from, "b");
+    }
+
+    #[test]
+    fn vex_sub_status_conflict_most_severe_falls_back_to_last_wins() {
+        // Same main status (not_affected), different justification: most-severe has no ordering → last-wins
+        let a = vex(vec![make_stmt_full("CVE-2021-45046", VexStatus::NotAffected, Some("vulnerable_code_not_present"), None, None)]);
+        let b = vex(vec![make_stmt_full("CVE-2021-45046", VexStatus::NotAffected, Some("component_not_present"), None, None)]);
+        let sources = ["a".into(), "b".into()];
+        let (merged, conflicts) = merge_vexes(vec![a, b], &sources, ConflictStrategy::MostSevere);
+        assert_eq!(merged.statements.len(), 1);
+        assert_eq!(merged.statements[0].justification.as_deref(), Some("component_not_present"));
+        assert_eq!(conflicts.len(), 1);
+    }
+
+    #[test]
+    fn vex_action_statement_conflict_is_detected() {
+        let a = vex(vec![make_stmt_full("CVE-2021-44228", VexStatus::Fixed, None, None, Some("Upgrade to 2.15.0"))]);
+        let b = vex(vec![make_stmt_full("CVE-2021-44228", VexStatus::Fixed, None, None, Some("Upgrade to 2.17.1"))]);
+        let sources = ["a".into(), "b".into()];
+        let (merged, conflicts) = merge_vexes(vec![a, b], &sources, ConflictStrategy::LastWins);
+        assert_eq!(merged.statements.len(), 1);
+        assert_eq!(merged.statements[0].action_statement.as_deref(), Some("Upgrade to 2.17.1"));
         assert_eq!(conflicts.len(), 1);
     }
 
@@ -300,7 +439,7 @@ mod tests {
             make_stmt("CVE-2021-00001", VexStatus::NotAffected),
         ]);
         let sources = ["a".into()];
-        let (merged, _) = merge_vexes(vec![a], &sources);
+        let (merged, _) = merge_vexes(vec![a], &sources, ConflictStrategy::LastWins);
         assert_eq!(merged.statements[0].vulnerability.id, "CVE-2021-00001");
         assert_eq!(merged.statements[1].vulnerability.id, "CVE-2022-99999");
     }

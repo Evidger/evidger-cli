@@ -17,6 +17,7 @@ pub fn expand(patterns: &[PathBuf]) -> Result<Vec<PathBuf>> {
         let s = pattern.to_string_lossy();
 
         if !is_glob(&s) {
+            // Preserve explicit ordering and allow duplicates (the merge engine deduplicates internally).
             result.push(pattern.clone());
             continue;
         }
@@ -26,21 +27,25 @@ pub fn expand(patterns: &[PathBuf]) -> Result<Vec<PathBuf>> {
             reason: e.to_string(),
         })?;
 
-        let mut matched = 0usize;
+        // Collect glob matches, sort them for predictable output, then deduplicate.
+        let mut new_paths: Vec<PathBuf> = Vec::new();
+        let mut total_matched = 0usize;
         for entry in entries {
             let path = entry.map_err(|e| EvidgerError::Io(e.into_error()))?;
-            if !result.contains(&path) {
-                result.push(path);
+            total_matched += 1;
+            if !result.contains(&path) && !new_paths.contains(&path) {
+                new_paths.push(path);
             }
-            matched += 1;
         }
 
-        if matched == 0 {
+        if total_matched == 0 {
             return Err(EvidgerError::NoFilesMatched(s.to_string()));
         }
+
+        new_paths.sort();
+        result.extend(new_paths);
     }
 
-    result.sort();
     Ok(result)
 }
 

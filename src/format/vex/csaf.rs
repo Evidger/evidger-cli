@@ -170,11 +170,20 @@ pub fn parse(value: &Value) -> VexDocument {
 }
 
 fn parse_statement(v: &Value) -> VexStatement {
-    let cve = v
+    // Prefer the `cve` field; fall back to the first entry in the `ids` array.
+    let id = v
         .get("cve")
         .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+        .map(String::from)
+        .or_else(|| {
+            v.get("ids")
+                .and_then(Value::as_array)
+                .and_then(|ids| ids.first())
+                .and_then(|entry| entry.get("text"))
+                .and_then(Value::as_str)
+                .map(String::from)
+        })
+        .unwrap_or_default();
 
     let description = v
         .get("title")
@@ -182,7 +191,7 @@ fn parse_statement(v: &Value) -> VexStatement {
         .map(String::from);
 
     let vulnerability = Vulnerability {
-        id: cve,
+        id,
         description,
         severity: None,
         aliases: vec![],

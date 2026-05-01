@@ -1,4 +1,4 @@
-use crate::registry::Format;
+use crate::{engine::merge::ConflictStrategy, registry::Format};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -38,6 +38,10 @@ pub enum Command {
         /// Files or glob patterns to merge (at least two required after expansion)
         #[arg(required = true, value_name = "FILE")]
         files: Vec<PathBuf>,
+
+        /// How to resolve VEX status conflicts [default: most-severe]
+        #[arg(long, value_name = "STRATEGY", default_value = "most-severe")]
+        conflict_strategy: ConflictStrategy,
     },
 
     /// Convert a document to a different format

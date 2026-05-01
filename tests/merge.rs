@@ -439,6 +439,169 @@ fn merge_csaf_and_openvex_vexes_cross_format() {
     assert_eq!(ids.len(), 3, "expected 3 unique vulnerabilities; got: {ids:?}");
 }
 
+// ─── Sub-status conflict detection ───────────────────────────────────────────
+
+// vex_openvex_valid               : CVE-2021-45046 (not_affected, vulnerable_code_not_present)
+// vex_openvex_justification_updated: CVE-2021-45046 (not_affected, inline_mitigations_already_exist)
+// Same main status, different justification → conflict
+
+#[test]
+fn merge_sub_status_conflict_reported_to_stderr() {
+    let out = cmd()
+        .args([
+            "merge",
+            "tests/data/vex_openvex_valid.json",
+            "tests/data/vex_openvex_justification_updated.json",
+        ])
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success());
+    assert!(stderr.contains("conflict"), "expected conflict on stderr; got:\n{stderr}");
+    assert!(stderr.contains("CVE-2021-45046"));
+}
+
+#[test]
+fn merge_sub_status_last_wins_keeps_second_justification() {
+    // valid (vulnerable_code_not_present) → justification_updated (inline_mitigations_already_exist)
+    // last-wins: second file's justification is kept
+    let json = stdout_json(&[
+        "merge",
+        "--conflict-strategy=last-wins",
+        "tests/data/vex_openvex_valid.json",
+        "tests/data/vex_openvex_justification_updated.json",
+    ]);
+    let stmts = json["statements"].as_array().unwrap();
+    let stmt = stmts.iter().find(|s| s["vulnerability"]["name"].as_str() == Some("CVE-2021-45046")).unwrap();
+    assert_eq!(stmt["status"].as_str(), Some("not_affected"));
+    assert_eq!(stmt["justification"].as_str(), Some("inline_mitigations_already_exist"));
+}
+
+#[test]
+fn merge_sub_status_most_severe_also_keeps_second_justification() {
+    // Same status, most-severe falls back to last-wins for sub-status
+    let json = stdout_json(&[
+        "merge",
+        "--conflict-strategy=most-severe",
+        "tests/data/vex_openvex_valid.json",
+        "tests/data/vex_openvex_justification_updated.json",
+    ]);
+    let stmts = json["statements"].as_array().unwrap();
+    let stmt = stmts.iter().find(|s| s["vulnerability"]["name"].as_str() == Some("CVE-2021-45046")).unwrap();
+    assert_eq!(stmt["justification"].as_str(), Some("inline_mitigations_already_exist"));
+}
+
+#[test]
+fn merge_csaf_sub_status_conflict_detected() {
+    // vex_csaf_valid: CVE-2021-45046 → not_affected, vulnerable_code_not_present
+    // vex_csaf_updated_justification: CVE-2021-45046 → not_affected, component_not_present
+    let out = cmd()
+        .args([
+            "merge",
+            "tests/data/vex_csaf_valid.json",
+            "tests/data/vex_csaf_updated_justification.json",
+        ])
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success());
+    assert!(stderr.contains("conflict"), "expected conflict on stderr; got:\n{stderr}");
+    assert!(stderr.contains("CVE-2021-45046"));
+}
+
+#[test]
+fn merge_csaf_sub_status_last_wins_keeps_new_justification() {
+    let json = stdout_json(&[
+        "merge",
+        "--conflict-strategy=last-wins",
+        "tests/data/vex_csaf_valid.json",
+        "tests/data/vex_csaf_updated_justification.json",
+    ]);
+    let stmts = json["statements"].as_array().unwrap();
+    // Merged output is OpenVEX format
+    let stmt = stmts
+        .iter()
+        .find(|s| s["vulnerability"]["name"].as_str() == Some("CVE-2021-45046"))
+        .unwrap();
+    assert_eq!(stmt["status"].as_str(), Some("not_affected"));
+    assert_eq!(stmt["justification"].as_str(), Some("component_not_present"));
+}
+
+// ─── CSAF non-CVE identifier ─────────────────────────────────────────────────
+
+#[test]
+fn merge_csaf_non_cve_id_is_preserved() {
+    // vex_csaf_non_cve.json has a vuln identified by ids[].text (GHSA-...)
+    // Merging it with itself should deduplicate (not produce two entries with the same id)
+    let json = stdout_json(&[
+        "merge",
+        "tests/data/vex_csaf_non_cve.json",
+        "tests/data/vex_csaf_non_cve.json",
+    ]);
+    let stmts = json["statements"].as_array().unwrap();
+    assert_eq!(stmts.len(), 1, "same non-CVE vuln should deduplicate");
+    assert_eq!(
+        stmts[0]["vulnerability"]["name"].as_str(),
+        Some("GHSA-abcd-1234-efgh")
+    );
+}
+
+// ─── Conflict strategy ────────────────────────────────────────────────────────
+
+// vex_openvex_valid   : CVE-2021-44228 (fixed), CVE-2021-45046 (not_affected)
+// vex_openvex_affected: CVE-2021-44228 (affected)
+
+#[test]
+fn merge_conflict_strategy_last_wins_keeps_second_file_status() {
+    // valid (fixed) then affected → last-wins keeps affected
+    let json = stdout_json(&[
+        "merge",
+        "--conflict-strategy=last-wins",
+        "tests/data/vex_openvex_valid.json",
+        "tests/data/vex_openvex_affected.json",
+    ]);
+    let stmts = json["statements"].as_array().unwrap();
+    let log4shell = stmts
+        .iter()
+        .find(|s| s["vulnerability"]["name"].as_str() == Some("CVE-2021-44228"))
+        .unwrap();
+    assert_eq!(log4shell["status"].as_str(), Some("affected"));
+}
+
+#[test]
+fn merge_conflict_strategy_most_severe_keeps_affected_over_fixed() {
+    // affected (file 1) vs fixed (file 2) → most-severe keeps affected
+    let json = stdout_json(&[
+        "merge",
+        "--conflict-strategy=most-severe",
+        "tests/data/vex_openvex_affected.json",
+        "tests/data/vex_openvex_valid.json",
+    ]);
+    let stmts = json["statements"].as_array().unwrap();
+    let log4shell = stmts
+        .iter()
+        .find(|s| s["vulnerability"]["name"].as_str() == Some("CVE-2021-44228"))
+        .unwrap();
+    assert_eq!(log4shell["status"].as_str(), Some("affected"));
+}
+
+#[test]
+fn merge_conflict_strategy_most_severe_keeps_affected_even_when_last() {
+    // fixed (file 1) vs affected (file 2) → most-severe still keeps affected
+    let json = stdout_json(&[
+        "merge",
+        "--conflict-strategy=most-severe",
+        "tests/data/vex_openvex_valid.json",
+        "tests/data/vex_openvex_affected.json",
+    ]);
+    let stmts = json["statements"].as_array().unwrap();
+    let log4shell = stmts
+        .iter()
+        .find(|s| s["vulnerability"]["name"].as_str() == Some("CVE-2021-44228"))
+        .unwrap();
+    assert_eq!(log4shell["status"].as_str(), Some("affected"));
+}
+
 // PathBuf import needed for output file test — suppress warning
 #[allow(dead_code)]
 fn _use_pathbuf(_: PathBuf) {}

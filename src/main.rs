@@ -121,7 +121,7 @@ fn run(cli: Cli) -> Result<()> {
             Ok(())
         }
 
-        Command::Merge { files } => {
+        Command::Merge { files, conflict_strategy } => {
             let files = glob::expand(&files)?;
             if files.len() < 2 {
                 return Err(EvidgerError::CliArgument(
@@ -129,7 +129,7 @@ fn run(cli: Cli) -> Result<()> {
                 ));
             }
 
-            let result = engine::merge::merge_files(&files)?;
+            let result = engine::merge::merge_files(&files, conflict_strategy)?;
 
             for c in &result.conflicts {
                 eprintln!(
