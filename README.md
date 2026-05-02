@@ -18,6 +18,7 @@ evidger helps security and engineering teams manage software supply chain risk b
   - [merge](#merge--combine-multiple-documents)
   - [convert](#convert--change-format)
   - [report](#report--generate-html-reports)
+- [Next Commands](#next-commands)
 - [Use Cases](#use-cases)
 - [Output & Exit Codes](#output--exit-codes)
 - [Error Reference](#error-reference)
@@ -370,6 +371,87 @@ evidger report sbom.json --minify -o sbom-compact.html
 ```
 
 The generated HTML is fully standalone — no external fonts, scripts, or stylesheets are fetched at render time.
+
+---
+
+## Next Commands
+
+The following commands are planned for future releases.
+
+### `catalog` — List elements of an SBOM or VEX document
+
+Browse and filter the contents of an SBOM or VEX file by category.
+
+```bash
+evidger catalog sbom.json --components
+evidger catalog vex.json --vulnerabilities
+```
+
+| Flag | Description |
+|------|-------------|
+| `--components` | List all components (name, version, PURL) |
+| `--vulnerabilities` | List all vulnerability statements |
+| `--licenses` | List all declared licenses |
+
+---
+
+### `risk` — Compute a risk score
+
+Calculates a risk score for a document or a correlated SBOM + VEX pair, based on vulnerability severity and status.
+
+```bash
+evidger risk sbom.json --vex advisory.json
+```
+
+---
+
+### `patch` — Apply transformation rules to a document
+
+Automatically modifies an SBOM or VEX file according to a declarative rules file (YAML). Useful for normalizing vendor SBOMs, adding missing fields, or enforcing company-wide policies.
+
+```bash
+evidger patch sbom.json --config rules.yaml -o sbom-patched.json
+```
+
+---
+
+### `policy` — Enforce compliance rules
+
+Evaluates a document against a policy ruleset and exits with a non-zero code on violation. Designed to block pipelines when unacceptable conditions are detected (e.g., a component with a known critical vulnerability and status `affected`).
+
+```bash
+evidger policy sbom.json --vex advisory.json --config policy.yaml
+```
+
+---
+
+### `inspect` — Intelligent document summary
+
+Analyzes an SBOM or VEX document and produces a concise structured overview — more opinionated than `report`, optimized for quick human review in a terminal.
+
+```bash
+evidger inspect sbom.json
+```
+
+**Example output:**
+
+```
+Components:       132
+Vulnerabilities:   12
+Licenses:         MIT, Apache-2.0
+Top critical:       2
+```
+
+---
+
+### `query` — Advanced filtering with expressions
+
+Executes a query expression against an SBOM or VEX document and returns matching entries as JSON. Useful for scripting and integration with external tools.
+
+```bash
+evidger query sbom.json "vulnerabilities[?cvss>=9]"
+evidger query sbom.json "components[?name=='openssl']"
+```
 
 ---
 
